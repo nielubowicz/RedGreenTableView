@@ -42,7 +42,7 @@
     for (NSIndexPath *knownPath in indexPathSet) {
         
         if (knownPath.section == indexPath.section) {
-            if (knownPath.row > indexPath.row) {
+            if (knownPath.row >= indexPath.row) {
                 NSIndexPath *newKnownPath = [NSIndexPath indexPathForRow:knownPath.row + 1 inSection:knownPath.section];
                 [tempSet addObject:newKnownPath];
             } else {
