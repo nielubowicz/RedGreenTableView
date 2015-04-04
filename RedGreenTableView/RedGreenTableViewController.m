@@ -12,8 +12,8 @@
 
 @interface RedGreenTableViewController ()
 
-@property (strong, nonatomic) NSMutableSet *expandedIndexPaths;
-@property (strong, nonatomic) NSMutableSet *extraIndexPaths;
+@property (strong, nonatomic) NSIndexPath *expandedIndexPath;
+@property (strong, nonatomic) NSIndexPath *extraIndexPath;
 
 @property (strong, nonatomic) SampleDataSource *sampleDataSource;
 @property (strong, nonatomic) SampleDelegate *sampleDelegate;
@@ -25,8 +25,6 @@
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    self.expandedIndexPaths = [NSMutableSet set];
-    self.extraIndexPaths = [NSMutableSet set];
     
     // Set up sample data source and delegate objects. In a real situation, the dataSource & delegate would probably be set externally
     self.sampleDataSource = [[SampleDataSource alloc] init];
@@ -34,44 +32,6 @@
     
     self.sampleDelegate = [[SampleDelegate alloc] init];
     self.delegate = self.sampleDelegate;
-}
-
-- (void)addIndexPath:(NSIndexPath *)indexPath toIndexPaths:(NSMutableSet *)indexPathSet
-{
-    NSMutableSet *tempSet = [NSMutableSet setWithObject:indexPath];
-    for (NSIndexPath *knownPath in indexPathSet) {
-        
-        if (knownPath.section == indexPath.section) {
-            if (knownPath.row >= indexPath.row) {
-                NSIndexPath *newKnownPath = [NSIndexPath indexPathForRow:knownPath.row + 1 inSection:knownPath.section];
-                [tempSet addObject:newKnownPath];
-            } else {
-                [tempSet addObject:knownPath];
-            }
-        } else {
-            [tempSet addObject:knownPath];
-        }
-    }
-    [indexPathSet setSet:tempSet];
-}
-
-- (void)removeIndexPath:(NSIndexPath *)indexPath fromIndexPaths:(NSMutableSet *)indexPathSet
-{
-    NSMutableSet *tempSet = [NSMutableSet set];
-    for (NSIndexPath *knownPath in indexPathSet) {
-        
-        if (knownPath.section == indexPath.section) {
-            if (knownPath.row > indexPath.row) {
-                NSIndexPath *newKnownPath = [NSIndexPath indexPathForRow:knownPath.row - 1 inSection:knownPath.section];
-                [tempSet addObject:newKnownPath];
-            } else if (knownPath.row < indexPath.row) {
-                [tempSet addObject:knownPath];
-            }
-        } else {
-            [tempSet addObject:knownPath];
-        }
-    }
-    [indexPathSet setSet:tempSet];
 }
 
 #pragma mark - UITableViewDelegate methods
@@ -82,25 +42,28 @@
     
     [tableView beginUpdates];
 
-    if ([self.expandedIndexPaths containsObject:indexPath]) {
-        [self removeIndexPath:indexPath fromIndexPaths:self.expandedIndexPaths];
-        NSIndexPath *extraIndexPath = [NSIndexPath indexPathForRow:indexPath.row + 1
-                                                         inSection:indexPath.section];
+    if ([self.expandedIndexPath isEqual:indexPath]) {
+        self.expandedIndexPath = nil;
+        self.extraIndexPath = [NSIndexPath indexPathForRow:indexPath.row + 1
+                                                 inSection:indexPath.section];
 
-        [self removeIndexPath:extraIndexPath fromIndexPaths:self.extraIndexPaths];
-        [tableView deleteRowsAtIndexPaths: @[ extraIndexPath ]
+        [tableView deleteRowsAtIndexPaths: @[ self.extraIndexPath ]
                          withRowAnimation:UITableViewRowAnimationTop];
+        self.extraIndexPath = nil;
         [self.delegate tableView:tableView didSelectRowAtIndexPath:indexPath];
 
-    } else if ([self.extraIndexPaths containsObject:indexPath]) {
+    } else if ([self.extraIndexPath isEqual:indexPath]) {
         [self.delegate tableView:tableView didSelectExpandedRowAtIndexPath:indexPath];
     } else {
-        
-        [self addIndexPath:indexPath toIndexPaths:self.expandedIndexPaths];
-        NSIndexPath *extraIndexPath = [NSIndexPath indexPathForRow:indexPath.row + 1
+        if (self.extraIndexPath) {
+            [tableView deleteRowsAtIndexPaths: @[ self.extraIndexPath ]
+                             withRowAnimation:UITableViewRowAnimationTop];
+        }
+        self.expandedIndexPath = indexPath;
+        self.extraIndexPath = [NSIndexPath indexPathForRow:indexPath.row + 1
                                                          inSection:indexPath.section];
-        [self addIndexPath:extraIndexPath toIndexPaths:self.extraIndexPaths];
-        [tableView insertRowsAtIndexPaths:@[ extraIndexPath ]
+
+        [tableView insertRowsAtIndexPaths:@[ self.extraIndexPath ]
                          withRowAnimation:UITableViewRowAnimationBottom];
         [self.delegate tableView:tableView didSelectRowAtIndexPath:indexPath];
     }
@@ -111,7 +74,7 @@
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
 {
     CGFloat height = [self.delegate tableView:tableView heightForRowAtIndexPath:indexPath];
-    if ([self.extraIndexPaths containsObject:indexPath]) {
+    if ([self.extraIndexPath isEqual:indexPath]) {
         height = [self.delegate tableView:tableView heightForExpandedRowAtIndexPath:indexPath];
     }
     
@@ -123,7 +86,7 @@
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
     UITableViewCell *cell = nil;
-    if ([self.extraIndexPaths containsObject:indexPath]) {
+    if ([self.extraIndexPath isEqual:indexPath]) {
         cell = [self.dataSource tableView:tableView expandedCellForRowAtIndexPath:indexPath];
     } else {
         cell = [self.dataSource tableView:tableView cellForRowAtIndexPath:indexPath];
@@ -135,7 +98,7 @@
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
 {
     NSInteger rows = [self.dataSource tableView:tableView numberOfRowsInSection:section];
-    rows += self.extraIndexPaths.count;
+    rows += ( self.expandedIndexPath ? 1 : 0 );
     
     return rows;
 }
