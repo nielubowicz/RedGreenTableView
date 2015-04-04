@@ -44,10 +44,10 @@
 
     if ([self.expandedIndexPath isEqual:indexPath]) {
         self.expandedIndexPath = nil;
-        self.extraIndexPath = [NSIndexPath indexPathForRow:indexPath.row + 1
-                                                 inSection:indexPath.section];
+        NSIndexPath *extraIndexPath = [NSIndexPath indexPathForRow:indexPath.row + 1
+                                                         inSection:indexPath.section];
 
-        [tableView deleteRowsAtIndexPaths: @[ self.extraIndexPath ]
+        [tableView deleteRowsAtIndexPaths: @[ extraIndexPath ]
                          withRowAnimation:UITableViewRowAnimationTop];
         self.extraIndexPath = nil;
         [self.delegate tableView:tableView didSelectRowAtIndexPath:indexPath];
@@ -73,9 +73,11 @@
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    CGFloat height = [self.delegate tableView:tableView heightForRowAtIndexPath:indexPath];
+    CGFloat height = 0.f;
     if ([self.extraIndexPath isEqual:indexPath]) {
         height = [self.delegate tableView:tableView heightForExpandedRowAtIndexPath:indexPath];
+    } else {
+        height = [self.delegate tableView:tableView heightForRowAtIndexPath:indexPath];
     }
     
     return height;
