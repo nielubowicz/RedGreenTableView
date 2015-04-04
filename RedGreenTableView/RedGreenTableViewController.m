@@ -7,13 +7,16 @@
 //
 
 #import "RedGreenTableViewController.h"
+#import "SampleDataSource.h"
+#import "SampleDelegate.h"
 
 @interface RedGreenTableViewController ()
 
 @property (strong, nonatomic) NSMutableSet *expandedIndexPaths;
 @property (strong, nonatomic) NSMutableSet *extraIndexPaths;
-@property (strong, nonatomic) NSIndexPath *expandedIndexPath;
-@property (strong, nonatomic) NSIndexPath *extraIndexPath;
+
+@property (strong, nonatomic) SampleDataSource *sampleDataSource;
+@property (strong, nonatomic) SampleDelegate *sampleDelegate;
 
 @end
 
@@ -24,6 +27,13 @@
     [super viewDidLoad];
     self.expandedIndexPaths = [NSMutableSet set];
     self.extraIndexPaths = [NSMutableSet set];
+    
+    // Set up sample data source and delegate objects. In a real situation, the dataSource & delegate would probably be set externally
+    self.sampleDataSource = [[SampleDataSource alloc] init];
+    self.dataSource = self.sampleDataSource;
+    
+    self.sampleDelegate = [[SampleDelegate alloc] init];
+    self.delegate = self.sampleDelegate;
 }
 
 - (void)addIndexPath:(NSIndexPath *)indexPath toIndexPaths:(NSMutableSet *)indexPathSet
@@ -74,26 +84,39 @@
 
     if ([self.expandedIndexPaths containsObject:indexPath]) {
         [self removeIndexPath:indexPath fromIndexPaths:self.expandedIndexPaths];
-        self.extraIndexPath = [NSIndexPath indexPathForRow:indexPath.row + 1
-                                                 inSection:indexPath.section];
+        NSIndexPath *extraIndexPath = [NSIndexPath indexPathForRow:indexPath.row + 1
+                                                         inSection:indexPath.section];
 
-        [self removeIndexPath:self.extraIndexPath fromIndexPaths:self.extraIndexPaths];
-        [tableView deleteRowsAtIndexPaths: @[ self.extraIndexPath ]
+        [self removeIndexPath:extraIndexPath fromIndexPaths:self.extraIndexPaths];
+        [tableView deleteRowsAtIndexPaths: @[ extraIndexPath ]
                          withRowAnimation:UITableViewRowAnimationTop];
-        self.extraIndexPath = nil;
-        
+        [self.delegate tableView:tableView didSelectRowAtIndexPath:indexPath];
+
+    } else if ([self.extraIndexPaths containsObject:indexPath]) {
+        [self.delegate tableView:tableView didSelectExpandedRowAtIndexPath:indexPath];
     } else {
+        
         [self addIndexPath:indexPath toIndexPaths:self.expandedIndexPaths];
-        self.extraIndexPath = [NSIndexPath indexPathForRow:indexPath.row + 1
-                                                 inSection:indexPath.section];
-        [self addIndexPath:self.extraIndexPath toIndexPaths:self.extraIndexPaths];
-        [tableView insertRowsAtIndexPaths:@[ self.extraIndexPath ]
+        NSIndexPath *extraIndexPath = [NSIndexPath indexPathForRow:indexPath.row + 1
+                                                         inSection:indexPath.section];
+        [self addIndexPath:extraIndexPath toIndexPaths:self.extraIndexPaths];
+        [tableView insertRowsAtIndexPaths:@[ extraIndexPath ]
                          withRowAnimation:UITableViewRowAnimationBottom];
+        [self.delegate tableView:tableView didSelectRowAtIndexPath:indexPath];
     }
 
     [tableView endUpdates];
 }
 
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    CGFloat height = [self.delegate tableView:tableView heightForRowAtIndexPath:indexPath];
+    if ([self.extraIndexPaths containsObject:indexPath]) {
+        height = [self.delegate tableView:tableView heightForExpandedRowAtIndexPath:indexPath];
+    }
+    
+    return height;
+}
 
 #pragma mark - UITableViewDatasource methods
 
@@ -101,9 +124,9 @@
 {
     UITableViewCell *cell = nil;
     if ([self.extraIndexPaths containsObject:indexPath]) {
-        cell = [tableView dequeueReusableCellWithIdentifier:@"greenCell"];
+        cell = [self.dataSource tableView:tableView expandedCellForRowAtIndexPath:indexPath];
     } else {
-        cell = [tableView dequeueReusableCellWithIdentifier:@"redCell"];
+        cell = [self.dataSource tableView:tableView cellForRowAtIndexPath:indexPath];
     }
     
     return cell;
@@ -111,20 +134,10 @@
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
 {
-    NSInteger rows = 15;
+    NSInteger rows = [self.dataSource tableView:tableView numberOfRowsInSection:section];
     rows += self.extraIndexPaths.count;
     
     return rows;
-}
-
-- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    CGFloat height = 44;
-    if ([self.extraIndexPaths containsObject:indexPath]) {
-        height = 88;
-    }
-    
-    return height;
 }
 
 @end
