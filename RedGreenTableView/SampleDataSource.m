@@ -17,6 +17,11 @@
     return 15;
 }
 
+- (NSInteger)tableView:(UITableView *)tableView numberOfExpandedRowsInSection:(NSInteger)section;
+{
+    return 3;
+}
+
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath;
 {
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"redCell"];
